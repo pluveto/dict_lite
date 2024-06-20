@@ -1,0 +1,108 @@
+name: Build and Release Flutter App
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        platform: [macos-latest, ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build app
+        run: |
+          if [ ${{ matrix.platform }} == 'macos-latest' ]; then
+            flutter build macos
+          elif [ ${{ matrix.platform }} == 'ubuntu-latest' ]; then
+            flutter build linux
+          elif [ ${{ matrix.platform }} == 'windows-latest' ]; then
+            flutter build windows
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-${{ matrix.platform }}
+          path: |
+            build/macos/Build/Products/Release/*.app
+            build/linux/release/bundle/*
+            build/windows/runner/Release/*.exe
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-macos-latest
+          path: dist/macos
+      - uses: actions/download-artifact@v3
+        with:
+          name: build-ubuntu-latest
+          path: dist/linux
+      - uses: actions/download-artifact@v3
+        with:
+          name: build-windows-latest
+          path: dist/windows
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets (macOS)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/macos/*.app
+          asset_name: macos-${{ github.ref }}.app
+          asset_content_type: application/octet-stream
+
+      - name: Upload Release Assets (Linux)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/linux/*
+          asset_name: linux-${{ github.ref }}.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload Release Assets (Windows)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/windows/*.exe
+          asset_name: windows-${{ github.ref }}.exe
+          asset_content_type: application/octet-stream
