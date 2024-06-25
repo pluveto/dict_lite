@@ -1,4 +1,5 @@
 import 'package:clipboard_watcher/clipboard_watcher.dart';
+import 'package:dict_lite/SearchTextField.dart';
 import 'package:dict_lite/dictionary_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,6 +28,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.white,
           brightness: Brightness.light,
+          background: Colors.white,
         ),
         // titlestyle
         appBarTheme: AppBarTheme(
@@ -86,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> with ClipboardListener {
     if (word.isNotEmpty) {
       final wordTrimed = word.trim();
       r = dictionaryService.lookup(wordTrimed);
+      r = dictionaryService.lookup(wordTrimed.toLowerCase());
       r ??= QueryResult(word: '', definition: "“$word” 不在已知词典内。");
     } else {
       r = QueryResult(word: '', definition: "请输入要查询的单词");
@@ -122,61 +125,80 @@ class _HomeScreenState extends State<HomeScreen> with ClipboardListener {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('DictLite 极简词典'),
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (String result) {
-              switch (result) {
-                case 'toggleClipboard':
-                  toggleClipboardListening();
-                  break;
-                case 'manageDictionaries':
-                  Get.to(() => DictionarySettingsScreen());
-                  break;
-              }
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              CheckedPopupMenuItem<String>(
-                value: 'toggleClipboard',
-                checked: isClipboardListening.value,
-                child: Text('监听剪贴板'),
-              ),
-              PopupMenuItem<String>(
-                value: 'manageDictionaries',
-                child: Text('管理词典'),
-              ),
-            ],
-          ),
-        ],
-      ),
-      body: Center(
+      // appBar: AppBar(
+      //   title: const Text('DictLite 极简词典'),
+      //   actions: [
+      //     PopupMenuButton<String>(
+      //       onSelected: (String result) {
+      //         switch (result) {
+      //           case 'toggleClipboard':
+      //             toggleClipboardListening();
+      //             break;
+      //           case 'manageDictionaries':
+      //             Get.to(() => DictionarySettingsScreen());
+      //             break;
+      //         }
+      //       },
+      //       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+      //         CheckedPopupMenuItem<String>(
+      //           value: 'toggleClipboard',
+      //           checked: isClipboardListening.value,
+      //           child: Text('监听剪贴板'),
+      //         ),
+      //         PopupMenuItem<String>(
+      //           value: 'manageDictionaries',
+      //           child: Text('管理词典'),
+      //         ),
+      //       ],
+      //     ),
+      //   ],
+      // ),
+      appBar: null,
+      body: SafeArea(
         child: Container(
           width: 400,
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 12.0),
           child: Column(
             children: [
-              TextField(
+              SearchTextField(
                 controller: wordController,
-                decoration: const InputDecoration(
-                  labelText: 'Enter a word',
-                ),
               ),
-              SizedBox(height: 20),
-              Obx(() => queryResult.value != null
-                  ? Column(
-                      children: [
-                        Text(
-                          queryResult.value!.word,
-                          style: TextStyle(fontSize: 24),
+              Expanded(
+                child: Obx(() => queryResult.value != null
+                    ? SingleChildScrollView(
+                        child: Column(
+                        children: [
+                          Text(
+                            queryResult.value!.word,
+                            style: TextStyle(
+                                fontSize: 24, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            queryResult.value!.definition,
+                            style: TextStyle(fontSize: 18),
+                          )
+                        ],
+                      ))
+                    : Text('请输入单词')),
+              ),
+              Container(
+                child: Row(
+                  children: [
+                    Text('监听剪贴板', style: TextStyle(fontSize: 12)),
+                    Transform.scale(
+                      scale: 0.5,
+                      child: Obx(
+                        () => Switch(
+                          value: isClipboardListening.value,
+                          onChanged: (bool value) {
+                            toggleClipboardListening();
+                          },
                         ),
-                        Text(
-                          queryResult.value!.definition,
-                          style: TextStyle(fontSize: 18),
-                        )
-                      ],
+                      ),
                     )
-                  : Text('请输入单词')),
+                  ],
+                ),
+              )
             ],
           ),
         ),
